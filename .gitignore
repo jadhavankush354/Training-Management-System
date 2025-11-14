@@ -1,0 +1,82 @@
+# Operating System Files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE Files
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+.project
+.classpath
+.settings/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Frontend - Node.js
+training_management_frontend/node_modules/
+training_management_frontend/dist/
+training_management_frontend/.env.local
+training_management_frontend/.env.*.local
+training_management_frontend/npm-debug.log*
+training_management_frontend/yarn-debug.log*
+training_management_frontend/yarn-error.log*
+
+# Backend - Java/Maven
+management/target/
+management/.mvn/
+management/mvnw
+management/mvnw.cmd
+*.class
+*.log
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Spring Boot
+management/HELP.md
+management/.gradle
+management/build/
+
+# Docker
+.dockerignore
+
+# Database
+*.sql~
+*.sql.bak
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.cache
+
+# Environment variables
+.env
+.env.local
+.env.production
+
+# Build outputs
+dist/
+build/
+out/
+
+# Package files
+*.tgz
+*.gz
+
+# Git
+.git/

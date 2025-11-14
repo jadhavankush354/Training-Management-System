@@ -1,0 +1,36 @@
+package com.training.management.model;
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Entity
+@Table(name = "trainees")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Trainee {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false)
+    private String name;
+
+    @Column(nullable = false, unique = true)
+    private String email;
+
+    @Column(nullable = false)
+    private String phone;
+
+    @Column(name = "batch_id")
+    private Long batchId;
+
+    @Column(name = "batch_name")
+    private String batchName;
+
+    @Column(name = "location")
+    private String location;
+}
