@@ -1,18 +1,21 @@
 <template>
   <div class="batch-management">
     <h2>📚 Batch Management</h2>
+    <div v-if="message" :class="['alert', messageType]">
+      {{ message }}
+    </div>
 
     <div class="card">
       <h3>{{ editMode ? 'Edit Batch' : 'Create New Batch' }}</h3>
       <form @submit.prevent="submitForm">
         <div class="form-row">
           <div class="form-group">
-            <label>Course Name:</label>
+            <label>Course Name<span style="color:red"> *</span></label>
             <input v-model="form.courseName" type="text" placeholder="Enter course name" required />
           </div>
 
           <div class="form-group">
-            <label>Location:</label>
+            <label>Location<span style="color:red"> *</span></label>
             <select v-model="form.location" required>
               <option value="">Select Location</option>
               <option value="Mumbai">Mumbai</option>
@@ -27,19 +30,19 @@
 
         <div class="form-row">
           <div class="form-group">
-            <label>Start Date:</label>
-            <input v-model="form.startDate" type="date" required />
+            <label>Start Date<span style="color:red"> *</span></label>
+            <input v-model="form.startDate" type="date" :min="minDate" required />
           </div>
 
           <div class="form-group">
-            <label>End Date:</label>
-            <input v-model="form.endDate" type="date" required />
+            <label>End Date<span style="color:red"> *</span></label>
+            <input v-model="form.endDate" type="date" :min="minDate" required />
           </div>
         </div>
 
         <div class="form-row">
           <div class="form-group">
-            <label>Select Trainer:</label>
+            <label>Select Trainer<span style="color:red"> *</span></label>
             <select v-model="form.trainerId">
               <option value="">Select Trainer (Optional)</option>
               <option v-for="trainer in availableTrainers" :key="trainer.id" :value="trainer.id">
@@ -49,17 +52,16 @@
           </div>
 
           <div class="form-group">
-            <label>Max Capacity:</label>
+            <label>Max Capacity<span style="color:red"> *</span></label>
             <input v-model.number="form.maxCapacity" type="number" min="1" placeholder="Enter max capacity" required />
           </div>
         </div>
 
         <div class="form-group">
-          <label>Status:</label>
+          <label>Status<span style="color:red"> *</span></label>
           <select v-model="form.status" required>
             <option value="Active">Active</option>
             <option value="Upcoming">Upcoming</option>
-            <option value="Completed">Completed</option>
           </select>
         </div>
 
@@ -129,9 +131,7 @@
       </div>
     </div>
 
-    <div v-if="message" :class="['alert', messageType]">
-      {{ message }}
-    </div>
+
   </div>
 </template>
 
@@ -160,6 +160,12 @@ export default {
       messageType: 'success',
       loading: false,
       editMode: false
+    }
+  },
+  computed: {
+    minDate() {
+      const today = new Date()
+      return today.toISOString().split('T')[0]  // Format: YYYY-MM-DD
     }
   },
   mounted() {
@@ -194,7 +200,20 @@ export default {
     },
 
     async submitForm() {
-      if (new Date(this.form.endDate) <= new Date(this.form.startDate)) {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)  // Reset time to start of day
+      
+      const startDate = new Date(this.form.startDate)
+      const endDate = new Date(this.form.endDate)
+
+      // Check if start date is not in the past
+      if (startDate < today) {
+        this.showMessage('Start date cannot be in the past', 'error')
+        return
+      }
+
+      // Check if end date is after start date
+      if (endDate <= startDate) {
         this.showMessage('End date must be after start date', 'error')
         return
       }
@@ -284,7 +303,6 @@ export default {
       const classes = {
         'Active': 'status-active',
         'Upcoming': 'status-upcoming',
-        'Completed': 'status-completed'
       }
       return classes[status] || 'status-default'
     },
@@ -301,6 +319,26 @@ export default {
 </script>
 
 <style scoped>
+.alert {
+  margin: 1rem 0;
+  padding: 1rem;
+  border-radius: 6px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.success {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #81c784;
+}
+
+.error {
+  background: #ffebee;
+  color: #c62828;
+  border: 1px solid #ef9a9a;
+}
+
 .batch-management {
   max-width: 1400px;
   margin: 0 auto;
@@ -383,10 +421,6 @@ h2 {
   color: #004085;
 }
 
-.status-completed {
-  background: #e2e3e5;
-  color: #383d41;
-}
 
 .batch-details {
   margin-bottom: 1rem;

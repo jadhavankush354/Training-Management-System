@@ -1,18 +1,21 @@
 <template>
   <div class="trainer-availability">
     <h2>📅 Trainer Availability Management</h2>
+    <div v-if="message" :class="['alert', messageType]">
+      {{ message }}
+    </div>
 
     <div class="card">
-      <h3>{{ editMode ? 'Edit Trainer' : 'Add Availability' }}</h3>
-      <form @submit.prevent="submitForm">
+      <h3>Add Availability</h3>
+      <form @submit.prevent="submitAvailability">
         <div class="form-row">
           <div class="form-group">
-            <label>Trainer Name:</label>
-            <input v-model="form.name" type="text" placeholder="Enter trainer name" required />
+            <label>Trainer Name<span style="color:red"> *</span></label>
+            <input v-model="form.name" type="text" required placeholder="Enter trainer name" />
           </div>
 
           <div class="form-group">
-            <label>Location:</label>
+            <label>Location<span style="color:red"> *</span></label>
             <select v-model="form.location" required>
               <option value="">Select Location</option>
               <option value="Mumbai">Mumbai</option>
@@ -27,30 +30,25 @@
 
         <div class="form-row">
           <div class="form-group">
-            <label>Available Date:</label>
-            <input v-model="form.availableDate" type="date" required />
+            <label>Available Date<span style="color:red"> *</span></label>
+            <input v-model="form.availableDate" type="date" required :min="minDate" />
           </div>
 
           <div class="form-group">
-            <label>Time Slot:</label>
+            <label>Time Slot<span style="color:red"> *</span></label>
             <select v-model="form.timeSlot" required>
               <option value="">Select Time Slot</option>
-              <option value="09:00-12:00">09:00 - 12:00</option>
-              <option value="09:00-18:00">09:00 - 18:00</option>
-              <option value="12:00-18:00">12:00 - 18:00</option>
-              <option value="14:00-18:00">14:00 - 18:00</option>
+              <option value="09:00-12:00">09:00 AM - 12:00 PM</option>
+              <option value="12:00-15:00">12:00 PM - 03:00 PM</option>
+              <option value="15:00-18:00">03:00 PM - 06:00 PM</option>
+              <option value="09:00-18:00">Full Day (09:00 AM - 06:00 PM)</option>
             </select>
           </div>
         </div>
 
-        <div class="button-group">
-          <button type="submit" class="btn btn-primary" :disabled="loading">
-            {{ loading ? 'Processing...' : (editMode ? 'Update Trainer' : 'Add Availability') }}
-          </button>
-          <button v-if="editMode" type="button" class="btn btn-secondary" @click="cancelEdit">
-            Cancel
-          </button>
-        </div>
+        <button type="submit" class="btn btn-primary" :disabled="loading">
+          {{ loading ? 'Adding...' : 'Add Availability' }}
+        </button>
       </form>
     </div>
 
@@ -66,30 +64,19 @@
               <th>Date</th>
               <th>Time Slot</th>
               <th>Status</th>
-              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="availability in availabilities" :key="availability.id">
-              <td>{{ availability.id }}</td>
-              <td>{{ availability.name }}</td>
-              <td>{{ availability.location }}</td>
-              <td>{{ formatDate(availability.availableDate) }}</td>
-              <td>{{ availability.timeSlot }}</td>
+            <tr v-for="item in availabilities" :key="item.id">
+              <td>{{ item.id }}</td>
+              <td>{{ item.name }}</td>
+              <td>{{ item.location }}</td>
+              <td>{{ formatDate(item.availableDate) }}</td>
+              <td>{{ item.timeSlot }}</td>
               <td>
-                <span :class="['badge', availability.assigned ? 'badge-warning' : 'badge-success']">
-                  {{ availability.assigned ? 'Assigned to Batch' : 'Available' }}
+                <span :class="['badge', item.assigned ? 'badge-warning' : 'badge-success']">
+                  {{ item.assigned ? 'Assigned to Batch' : 'Available' }}
                 </span>
-              </td>
-              <td>
-                <div class="action-buttons">
-                  <button @click="editTrainer(availability)" class="btn-icon btn-edit" title="Edit">
-                    ✏️
-                  </button>
-                  <button @click="deleteTrainer(availability.id)" class="btn-icon btn-delete" title="Delete">
-                    🗑️
-                  </button>
-                </div>
               </td>
             </tr>
           </tbody>
@@ -97,16 +84,15 @@
       </div>
     </div>
 
-    <div v-else class="card">
-      <div class="no-data">
-        <p>No availability records found</p>
-        <p>Add trainer availability using the form above</p>
-      </div>
+    <div v-else-if="!loading" class="empty-state">
+      <h3>No availability records found</h3>
+      <p>Add trainer availability using the form above</p>
     </div>
 
-    <div v-if="message" :class="['alert', messageType]">
-      {{ message }}
+    <div v-if="loading && availabilities.length === 0" class="loading">
+      <p>Loading availabilities...</p>
     </div>
+
   </div>
 </template>
 
@@ -118,100 +104,64 @@ export default {
   data() {
     return {
       form: {
-        id: null,
         name: '',
         location: '',
         availableDate: '',
-        timeSlot: '',
-        assigned: false,
-        batchId: null
+        timeSlot: ''
       },
       availabilities: [],
       message: '',
       messageType: 'success',
       loading: false,
-      editMode: false
+      minDate: ''
     }
   },
   mounted() {
+    this.setMinDate()
     this.loadAvailabilities()
   },
   methods: {
-    async submitForm() {
+    setMinDate() {
+      const today = new Date()
+      this.minDate = today.toISOString().split('T')[0]
+    },
+
+    async submitAvailability() {
       this.loading = true
       try {
-        if (this.editMode) {
-          await api.updateTrainer(this.form.id, this.form)
-          this.showMessage('✅ Trainer updated successfully!', 'success')
-        } else {
-          await api.addTrainerAvailability(this.form)
-          this.showMessage('✅ Trainer availability added successfully!', 'success')
-        }
-        
-        this.loadAvailabilities()
+        await api.addTrainerAvailability(this.form)
+        this.showMessage('Availability added successfully!', 'success')
         this.resetForm()
+        this.loadAvailabilities()
       } catch (error) {
-        this.showMessage('❌ Error: ' + (error.response?.data?.message || error.message), 'error')
+        this.showMessage('Error adding availability: ' + (error.response?.data?.message || error.message), 'error')
       } finally {
         this.loading = false
       }
     },
-
-    editTrainer(trainer) {
-      this.editMode = true
-      this.form = {
-        id: trainer.id,
-        name: trainer.name,
-        location: trainer.location,
-        availableDate: trainer.availableDate,
-        timeSlot: trainer.timeSlot,
-        assigned: trainer.assigned,
-        batchId: trainer.batchId
-      }
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-    },
-
-    async deleteTrainer(id) {
-      if (!confirm('Are you sure you want to delete this trainer?')) {
-        return
-      }
-
+    
+    async loadAvailabilities() {
+      this.loading = true
       try {
-        await api.deleteTrainer(id)
-        this.showMessage('✅ Trainer deleted successfully!', 'success')
-        this.loadAvailabilities()
+        const response = await api.getTrainers()
+        this.availabilities = response.data
       } catch (error) {
-        this.showMessage('❌ Error deleting trainer', 'error')
+        console.error('Error loading availabilities:', error)
+        this.showMessage('Error loading availabilities', 'error')
+      } finally {
+        this.loading = false
       }
     },
-
-    cancelEdit() {
-      this.resetForm()
-    },
-
+    
     resetForm() {
-      this.editMode = false
       this.form = {
-        id: null,
         name: '',
         location: '',
         availableDate: '',
-        timeSlot: '',
-        assigned: false,
-        batchId: null
+        timeSlot: ''
       }
     },
-
-    async loadAvailabilities() {
-      try {
-        const response = await api.getTrainers()
-        this.availabilities = response.data || []
-      } catch (error) {
-        console.error('Error loading availabilities:', error)
-        this.showMessage('Error loading trainer availabilities', 'error')
-      }
-    },
-
+    
     formatDate(date) {
       if (!date) return 'N/A'
       return new Date(date).toLocaleDateString('en-IN', {
@@ -220,7 +170,7 @@ export default {
         day: 'numeric'
       })
     },
-
+    
     showMessage(msg, type) {
       this.message = msg
       this.messageType = type
@@ -233,8 +183,28 @@ export default {
 </script>
 
 <style scoped>
+.alert {
+  margin: 1rem 0;
+  padding: 1rem;
+  border-radius: 6px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.success {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #81c784;
+}
+
+.error {
+  background: #ffebee;
+  color: #c62828;
+  border: 1px solid #ef9a9a;
+}
+
 .trainer-availability {
-  max-width: 1200px;
+  max-width: 1000px;
   margin: 0 auto;
 }
 
@@ -251,44 +221,8 @@ h2 {
   margin-bottom: 1.5rem;
 }
 
-.button-group {
-  display: flex;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
 .table-responsive {
   overflow-x: auto;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: center;
-}
-
-.btn-icon {
-  background: none;
-  border: none;
-  font-size: 1.2rem;
-  cursor: pointer;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  transition: all 0.3s;
-}
-
-.btn-edit:hover {
-  background: #e3f2fd;
-}
-
-.btn-delete:hover {
-  background: #ffebee;
-}
-
-.no-data {
-  text-align: center;
-  padding: 2rem;
-  color: #666;
 }
 
 @media (max-width: 768px) {

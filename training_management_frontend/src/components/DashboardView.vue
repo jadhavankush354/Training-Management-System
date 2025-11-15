@@ -1,6 +1,9 @@
 <template>
   <div class="dashboard">
     <h2>📊 Dashboard & Analytics</h2>
+    <div v-if="error" class="alert error">
+      {{ error }}
+    </div>
 
     <div class="stats-grid">
       <div class="stat-card">
@@ -67,9 +70,7 @@
       <p>Loading dashboard data...</p>
     </div>
 
-    <div v-if="error" class="alert error">
-      {{ error }}
-    </div>
+
   </div>
 </template>
 
@@ -333,6 +334,26 @@ export default {
 </script>
 
 <style scoped>
+.alert {
+  margin: 1rem 0;
+  padding: 1rem;
+  border-radius: 6px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.success {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #81c784;
+}
+
+.error {
+  background: #ffebee;
+  color: #c62828;
+  border: 1px solid #ef9a9a;
+}
+
 .dashboard {
   max-width: 1200px;
   margin: 0 auto;

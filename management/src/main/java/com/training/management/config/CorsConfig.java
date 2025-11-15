@@ -14,12 +14,11 @@ public class CorsConfig {
     @Bean
     public CorsFilter corsFilter() {
         CorsConfiguration corsConfiguration = new CorsConfiguration();
-        corsConfiguration.setAllowCredentials(true);
-        corsConfiguration.setAllowedOrigins(Arrays.asList(
-                "http://localhost:8080",
-                "http://localhost:8081",
-                "http://localhost:3000"
-        ));
+
+        // Allow ALL origins
+        corsConfiguration.setAllowCredentials(false);
+        corsConfiguration.addAllowedOriginPattern("*");
+
         corsConfiguration.setAllowedHeaders(Arrays.asList(
                 "Origin",
                 "Access-Control-Allow-Origin",

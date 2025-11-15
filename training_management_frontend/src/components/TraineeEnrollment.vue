@@ -1,30 +1,40 @@
 <template>
   <div class="trainee-enrollment">
     <h2>👨‍🎓 Trainee Enrollment Management</h2>
+    <div v-if="message" :class="['alert', messageType]">
+      {{ message }}
+    </div>
 
     <div class="card">
       <h3>{{ editMode ? 'Edit Trainee' : 'Enroll New Trainee' }}</h3>
       <form @submit.prevent="submitForm">
         <div class="form-row">
           <div class="form-group">
-            <label>Trainee Name:</label>
+            <label>Trainee Name<span style="color:red"> *</span></label>
             <input v-model="form.name" type="text" placeholder="Enter trainee name" required />
           </div>
 
           <div class="form-group">
-            <label>Email:</label>
+            <label>Email<span style="color:red"> *</span></label>
             <input v-model="form.email" type="email" placeholder="Enter email" required />
           </div>
         </div>
 
         <div class="form-row">
           <div class="form-group">
-            <label>Phone:</label>
-            <input v-model="form.phone" type="tel" placeholder="Enter phone number" required />
+            <label>Phone<span style="color:red"> *</span></label>
+            <input
+              v-model="form.phone"
+              type="tel"
+              placeholder="Enter phone number"
+              required
+              pattern="^[0-9]{10}$"
+              title="Phone number must be exactly 10 digits"
+            />
           </div>
 
           <div class="form-group">
-            <label>Select Batch:</label>
+            <label>Select Batch<span style="color:red"> *</span></label>
             <select v-model="form.batchId" required>
               <option value="">Select a Batch</option>
               <option v-for="batch in batches" :key="batch.id" :value="batch.id">
@@ -93,10 +103,6 @@
         <p>No trainees enrolled yet</p>
         <p>Enroll trainees using the form above</p>
       </div>
-    </div>
-
-    <div v-if="message" :class="['alert', messageType]">
-      {{ message }}
     </div>
   </div>
 </template>
@@ -227,6 +233,26 @@ export default {
 </script>
 
 <style scoped>
+.alert {
+  margin: 1rem 0;
+  padding: 1rem;
+  border-radius: 6px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.success {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #81c784;
+}
+
+.error {
+  background: #ffebee;
+  color: #c62828;
+  border: 1px solid #ef9a9a;
+}
+
 .trainee-enrollment {
   max-width: 1200px;
   margin: 0 auto;

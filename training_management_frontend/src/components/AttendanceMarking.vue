@@ -1,13 +1,16 @@
 <template>
   <div class="attendance-marking">
     <h2>✅ Mark Attendance</h2>
+    <div v-if="message" :class="['alert', messageType]">
+      {{ message }}
+    </div>
 
     <div class="card">
       <h3>Mark Attendance</h3>
       <form @submit.prevent="markAttendance">
         <div class="form-row">
           <div class="form-group">
-            <label>Select Batch:</label>
+            <label>Select Batch<span style="color:red"> *</span></label>
             <select v-model="selectedBatchId" @change="loadTraineesByBatch" required>
               <option value="">Select a Batch</option>
               <option v-for="batch in batches" :key="batch.id" :value="batch.id">
@@ -17,13 +20,13 @@
           </div>
 
           <div class="form-group">
-            <label>Attendance Date:</label>
+            <label>Attendance Date<span style="color:red"> *</span></label>
             <input v-model="form.date" type="date" required :max="maxDate" />
           </div>
         </div>
 
         <div class="form-group" v-if="selectedBatchId && batchTrainees.length > 0">
-          <label>Select Trainee:</label>
+          <label>Select Trainee<span style="color:red"> *</span></label>
           <select v-model="form.traineeId" required>
             <option value="">Select a Trainee</option>
             <option v-for="trainee in batchTrainees" :key="trainee.id" :value="trainee.id">
@@ -37,7 +40,7 @@
         </div>
 
         <div class="form-group" v-if="form.traineeId || editMode">
-          <label>Attendance Status:</label>
+          <label>Attendance Status<span style="color:red"> *</span></label>
           <div class="radio-group">
             <label class="radio-label">
               <input type="radio" v-model="form.status" value="PRESENT" required />
@@ -121,9 +124,7 @@
       </div>
     </div>
 
-    <div v-if="message" :class="['alert', messageType]">
-      {{ message }}
-    </div>
+
   </div>
 </template>
 
@@ -319,6 +320,26 @@ export default {
 </script>
 
 <style scoped>
+.alert {
+  margin: 1rem 0;
+  padding: 1rem;
+  border-radius: 6px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.success {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #81c784;
+}
+
+.error {
+  background: #ffebee;
+  color: #c62828;
+  border: 1px solid #ef9a9a;
+}
+
 .attendance-marking {
   max-width: 1200px;
   margin: 0 auto;
