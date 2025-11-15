@@ -1,77 +1,80 @@
 <template>
   <div class="attendance-marking">
-    <h2>✅ Mark Attendance</h2>
-    <div v-if="message" :class="['alert', messageType]">
-      {{ message }}
+    <div class="page-header">
+      <h2>✅ Mark Attendance</h2>
+      <button @click="openAddModal" class="btn btn-add">
+        ➕ Mark Attendance
+      </button>
     </div>
 
-    <div class="card">
-      <h3>Mark Attendance</h3>
-      <form @submit.prevent="markAttendance">
-        <div class="form-row">
-          <div class="form-group">
-            <label>Select Batch<span style="color:red"> *</span></label>
-            <select v-model="selectedBatchId" @change="loadTraineesByBatch" required>
-              <option value="">Select a Batch</option>
-              <option v-for="batch in batches" :key="batch.id" :value="batch.id">
-                {{ batch.courseName }} - {{ batch.location }}
-              </option>
-            </select>
+    <!-- Modal Overlay -->
+    <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>{{ editMode ? 'Edit Attendance' : 'Mark Attendance' }}</h3>
+          <button @click="closeModal" class="modal-close">×</button>
+        </div>
+        <form @submit.prevent="submitForm">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Select Batch <span class="required">*</span></label>
+              <select v-model="form.batchId" @change="loadTraineesForBatch" required>
+                <option value="">Select a Batch</option>
+                <option v-for="batch in batches" :key="batch.id" :value="batch.id">
+                  {{ batch.courseName }} - {{ batch.location }}
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Attendance Date <span class="required">*</span></label>
+              <input 
+                v-model="form.date" 
+                type="date" 
+                :max="maxDate"
+                required 
+              />
+              <small class="hint">Cannot select future dates</small>
+            </div>
           </div>
 
-          <div class="form-group">
-            <label>Attendance Date<span style="color:red"> *</span></label>
-            <input v-model="form.date" type="date" required :max="maxDate" />
+          <div class="form-row" v-if="form.batchId">
+            <div class="form-group">
+              <label>Select Trainee <span class="required">*</span></label>
+              <select v-model="form.traineeId" required>
+                <option value="">Select a Trainee</option>
+                <option v-for="trainee in batchTrainees" :key="trainee.id" :value="trainee.id">
+                  {{ trainee.name }}
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Status <span class="required">*</span></label>
+              <select v-model="form.status" required>
+                <option value="">Select Status</option>
+                <option value="PRESENT">Present</option>
+                <option value="ABSENT">Absent</option>
+                <option value="LATE">Late</option>
+              </select>
+            </div>
           </div>
-        </div>
 
-        <div class="form-group" v-if="selectedBatchId && batchTrainees.length > 0">
-          <label>Select Trainee<span style="color:red"> *</span></label>
-          <select v-model="form.traineeId" required>
-            <option value="">Select a Trainee</option>
-            <option v-for="trainee in batchTrainees" :key="trainee.id" :value="trainee.id">
-              {{ trainee.name }} ({{ trainee.email }})
-            </option>
-          </select>
-        </div>
-
-        <div class="form-group" v-if="selectedBatchId && batchTrainees.length === 0 && !loading">
-          <p class="info-message">⚠️ No trainees enrolled in this batch yet. Please enroll trainees first.</p>
-        </div>
-
-        <div class="form-group" v-if="form.traineeId || editMode">
-          <label>Attendance Status<span style="color:red"> *</span></label>
-          <div class="radio-group">
-            <label class="radio-label">
-              <input type="radio" v-model="form.status" value="PRESENT" required />
-              <span class="badge badge-success">Present</span>
-            </label>
-            <label class="radio-label">
-              <input type="radio" v-model="form.status" value="ABSENT" required />
-              <span class="badge badge-danger">Absent</span>
-            </label>
-            <label class="radio-label">
-              <input type="radio" v-model="form.status" value="LATE" required />
-              <span class="badge badge-warning">Late</span>
-            </label>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" @click="closeModal">
+              Cancel
+            </button>
+            <button type="submit" class="btn btn-primary" :disabled="loading || !form.batchId">
+              {{ loading ? 'Processing...' : (editMode ? 'Update' : 'Mark') }}
+            </button>
           </div>
-        </div>
-
-        <div class="button-group">
-          <button type="submit" class="btn btn-primary" :disabled="loading || (!form.traineeId && !editMode)">
-            {{ loading ? 'Processing...' : (editMode ? 'Update Attendance' : 'Mark Attendance') }}
-          </button>
-          <button v-if="editMode" type="button" class="btn btn-secondary" @click="cancelEdit">
-            Cancel
-          </button>
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
 
     <div class="card">
       <h3>Attendance Records</h3>
-      
-      <div class="form-group">
+      <div class="filter-section">
         <label>Filter by Batch:</label>
         <select v-model="filterBatchId" @change="filterAttendance">
           <option value="">All Batches</option>
@@ -81,7 +84,11 @@
         </select>
       </div>
 
-      <div class="table-responsive" v-if="filteredAttendanceRecords.length > 0">
+      <div v-if="loadingRecords" class="loading-message">
+        <p>Loading attendance records...</p>
+      </div>
+
+      <div v-else-if="filteredAttendance.length > 0" class="table-responsive">
         <table class="data-table">
           <thead>
             <tr>
@@ -94,13 +101,13 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="record in filteredAttendanceRecords" :key="record.id">
+            <tr v-for="record in filteredAttendance" :key="record.id">
               <td>{{ record.id }}</td>
               <td>{{ formatDate(record.date) }}</td>
               <td>{{ record.traineeName }}</td>
               <td>{{ record.batchName }}</td>
               <td>
-                <span :class="['badge', getBadgeClass(record.status)]">
+                <span :class="['badge', getStatusClass(record.status)]">
                   {{ record.status }}
                 </span>
               </td>
@@ -118,91 +125,117 @@
           </tbody>
         </table>
       </div>
-      
+
       <div v-else class="no-data">
-        <p>No attendance records found</p>
+        <p>📋 No attendance records found</p>
+        <p>Click "Mark Attendance" button to add new records</p>
       </div>
     </div>
-
-
   </div>
 </template>
 
 <script>
 import api from '../services/api'
+import { showToast } from '../utils/toast'
 
 export default {
   name: 'AttendanceMarking',
   data() {
     return {
+      showModal: false,
       form: {
         id: null,
-        traineeId: '',
         batchId: '',
-        date: '',
-        status: 'PRESENT'
+        traineeId: '',
+        date: new Date().toISOString().split('T')[0],
+        status: ''
       },
-      selectedBatchId: '',
-      filterBatchId: '',
       batches: [],
       batchTrainees: [],
       attendanceRecords: [],
-      filteredAttendanceRecords: [],
-      message: '',
-      messageType: 'success',
+      filteredAttendance: [],
+      filterBatchId: '',
       loading: false,
-      editMode: false,
-      maxDate: ''
+      loadingRecords: false,
+      editMode: false
+    }
+  },
+  computed: {
+    maxDate() {
+      const today = new Date()
+      return today.toISOString().split('T')[0]
     }
   },
   mounted() {
-    this.setMaxDate()
     this.loadBatches()
-    this.loadAttendanceRecords()
+    this.loadAttendance()
   },
   methods: {
-    setMaxDate() {
-      const today = new Date()
-      this.maxDate = today.toISOString().split('T')[0]
-      this.form.date = this.maxDate
-    },
-
     async loadBatches() {
       try {
         const response = await api.getBatches()
         this.batches = response.data || []
       } catch (error) {
         console.error('Error loading batches:', error)
-        this.showMessage('Error loading batches', 'error')
+        showToast('Error loading batches', 'error')
       }
     },
 
-    async loadTraineesByBatch() {
-      if (!this.selectedBatchId) {
+    async loadAttendance() {
+      this.loadingRecords = true
+      try {
+        const response = await api.getAllAttendance()
+        console.log('Attendance response:', response.data)
+        this.attendanceRecords = response.data || []
+        this.filteredAttendance = this.attendanceRecords
+      } catch (error) {
+        console.error('Error loading attendance:', error)
+        showToast('Error loading attendance records', 'error')
+        this.attendanceRecords = []
+        this.filteredAttendance = []
+      } finally {
+        this.loadingRecords = false
+      }
+    },
+
+    async loadTraineesForBatch() {
+      if (!this.form.batchId) {
         this.batchTrainees = []
-        this.form.traineeId = ''
         return
       }
-      
-      this.loading = true
-      this.form.traineeId = ''
-      this.batchTrainees = []
-      
       try {
-        const response = await api.getTraineesByBatch(this.selectedBatchId)
+        const response = await api.getTraineesByBatch(this.form.batchId)
         this.batchTrainees = response.data || []
-        this.form.batchId = this.selectedBatchId
+        
+        if (this.batchTrainees.length === 0) {
+          showToast('No trainees found in this batch', 'warning')
+        }
       } catch (error) {
         console.error('Error loading trainees:', error)
+        showToast('Error loading trainees for batch', 'error')
         this.batchTrainees = []
-      } finally {
-        this.loading = false
       }
     },
 
-    async markAttendance() {
-      if ((!this.form.traineeId || !this.form.batchId) && !this.editMode) {
-        this.showMessage('Please select batch and trainee', 'error')
+    openAddModal() {
+      this.editMode = false
+      this.resetForm()
+      this.showModal = true
+    },
+
+    closeModal() {
+      this.showModal = false
+      this.resetForm()
+    },
+
+    async submitForm() {
+      // Date validation - cannot be future date
+      const selectedDate = new Date(this.form.date)
+      const today = new Date()
+      today.setHours(23, 59, 59, 999)
+      
+      if (selectedDate > today) {
+        showToast('Cannot mark attendance for future dates', 'error')
         return
       }
 
@@ -210,16 +243,16 @@ export default {
       try {
         if (this.editMode) {
           await api.updateAttendance(this.form.id, this.form)
-          this.showMessage('✅ Attendance updated successfully!', 'success')
+          showToast('Attendance updated successfully!', 'success')
         } else {
           await api.markAttendance(this.form)
-          this.showMessage('✅ Attendance marked successfully!', 'success')
+          showToast('Attendance marked successfully!', 'success')
         }
-        
-        this.loadAttendanceRecords()
-        this.resetForm()
+        this.closeModal()
+        this.loadAttendance()
       } catch (error) {
-        this.showMessage('❌ Error: ' + (error.response?.data?.message || error.message), 'error')
+        console.error('Submit error:', error)
+        showToast('Error: ' + (error.response?.data?.message || error.message), 'error')
       } finally {
         this.loading = false
       }
@@ -229,126 +262,233 @@ export default {
       this.editMode = true
       this.form = {
         id: record.id,
-        traineeId: record.traineeId,
         batchId: record.batchId,
+        traineeId: record.traineeId,
         date: record.date,
         status: record.status
       }
-      this.selectedBatchId = record.batchId
-      this.loadTraineesByBatch()
-      window.scrollTo({ top: 0, behavior: 'smooth' })
+      this.loadTraineesForBatch()
+      this.showModal = true
     },
 
     async deleteAttendance(id) {
       if (!confirm('Are you sure you want to delete this attendance record?')) {
         return
       }
-
       try {
         await api.deleteAttendance(id)
-        this.showMessage('✅ Attendance deleted successfully!', 'success')
-        this.loadAttendanceRecords()
+        showToast('Attendance deleted successfully!', 'success')
+        this.loadAttendance()
       } catch (error) {
-        this.showMessage('❌ Error deleting attendance', 'error')
+        showToast('Error deleting attendance', 'error')
       }
     },
 
-    cancelEdit() {
-      this.resetForm()
+    filterAttendance() {
+      if (!this.filterBatchId) {
+        this.filteredAttendance = this.attendanceRecords
+      } else {
+        this.filteredAttendance = this.attendanceRecords.filter(
+          record => record.batchId === parseInt(this.filterBatchId)
+        )
+      }
     },
 
     resetForm() {
       this.editMode = false
       this.form = {
         id: null,
-        traineeId: '',
         batchId: '',
-        date: this.maxDate,
-        status: 'PRESENT'
+        traineeId: '',
+        date: new Date().toISOString().split('T')[0],
+        status: ''
       }
-      this.selectedBatchId = ''
       this.batchTrainees = []
-    },
-
-    async loadAttendanceRecords() {
-      try {
-        const response = await api.getAllAttendance()
-        this.attendanceRecords = response.data || []
-        this.filterAttendance()
-      } catch (error) {
-        console.error('Error loading attendance records:', error)
-      }
-    },
-
-    filterAttendance() {
-      if (this.filterBatchId) {
-        this.filteredAttendanceRecords = this.attendanceRecords.filter(
-          record => record.batchId == this.filterBatchId
-        )
-      } else {
-        this.filteredAttendanceRecords = [...this.attendanceRecords]
-      }
     },
 
     formatDate(date) {
       if (!date) return 'N/A'
       return new Date(date).toLocaleDateString('en-IN', {
-        year: 'numeric',
+        day: 'numeric',
         month: 'short',
-        day: 'numeric'
+        year: 'numeric'
       })
     },
 
-    getBadgeClass(status) {
+    getStatusClass(status) {
       const classes = {
         'PRESENT': 'badge-success',
         'ABSENT': 'badge-danger',
         'LATE': 'badge-warning'
       }
       return classes[status] || 'badge-info'
-    },
-
-    showMessage(msg, type) {
-      this.message = msg
-      this.messageType = type
-      setTimeout(() => {
-        this.message = ''
-      }, 5000)
     }
   }
 }
 </script>
 
 <style scoped>
-.alert {
-  margin: 1rem 0;
-  padding: 1rem;
-  border-radius: 6px;
-  font-weight: 600;
-  text-align: center;
-}
-
-.success {
-  background: #e8f5e9;
-  color: #2e7d32;
-  border: 1px solid #81c784;
-}
-
-.error {
-  background: #ffebee;
-  color: #c62828;
-  border: 1px solid #ef9a9a;
-}
-
 .attendance-marking {
   max-width: 1200px;
   margin: 0 auto;
 }
 
-h2 {
-  color: #2c3e50;
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 2rem;
+}
+
+.page-header h2 {
+  color: #2c3e50;
   font-size: 2rem;
+  margin: 0;
+}
+
+.btn-add {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-add:hover {
+  background: #218838;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(40, 167, 69, 0.4);
+}
+
+.hint {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  color: #6c757d;
+}
+
+.filter-section {
+  margin-bottom: 1.5rem;
+}
+
+.filter-section label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.filter-section select {
+  width: 100%;
+  max-width: 400px;
+  padding: 0.75rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+.loading-message {
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+}
+
+.no-data {
+  text-align: center;
+  padding: 3rem 2rem;
+  color: #666;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.no-data p:first-child {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  padding: 0;
+  width: 90%;
+  max-width: 700px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    transform: translateY(-50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid #e0e0e0;
+  background: #667eea;
+  border-radius: 12px 12px 0 0;
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: white;
+  font-size: 1.5rem;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: white;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.modal-close:hover {
+  opacity: 0.8;
+}
+
+.modal-content form {
+  padding: 2rem;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e0e0e0;
 }
 
 .form-row {
@@ -358,37 +498,8 @@ h2 {
   margin-bottom: 1.5rem;
 }
 
-.radio-group {
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.radio-label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-}
-
-.radio-label input[type="radio"] {
-  width: auto;
-  cursor: pointer;
-}
-
-.button-group {
-  display: flex;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.info-message {
-  color: #856404;
-  background: #fff3cd;
-  padding: 1rem;
-  border-radius: 5px;
-  border: 1px solid #ffc107;
-  text-align: center;
+.required {
+  color: red;
 }
 
 .table-responsive {
@@ -398,7 +509,6 @@ h2 {
 .action-buttons {
   display: flex;
   gap: 0.5rem;
-  justify-content: center;
 }
 
 .btn-icon {
@@ -419,23 +529,23 @@ h2 {
   background: #ffebee;
 }
 
-.no-data {
-  text-align: center;
-  padding: 2rem;
-  color: #666;
-}
-
 @media (max-width: 768px) {
-  h2 {
+  .page-header {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .page-header h2 {
     font-size: 1.5rem;
   }
-  
+
   .form-row {
     grid-template-columns: 1fr;
   }
-  
-  .action-buttons {
-    flex-direction: column;
+
+  .modal-content {
+    width: 95%;
+    margin: 1rem;
   }
 }
 </style>

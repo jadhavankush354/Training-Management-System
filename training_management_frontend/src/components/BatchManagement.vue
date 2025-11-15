@@ -1,79 +1,98 @@
 <template>
   <div class="batch-management">
-    <h2>📚 Batch Management</h2>
-    <div v-if="message" :class="['alert', messageType]">
-      {{ message }}
+    <div class="page-header">
+      <h2>📚 Batch Management</h2>
+      <button @click="openAddModal" class="btn btn-add">
+        ➕ Create Batch
+      </button>
     </div>
 
-    <div class="card">
-      <h3>{{ editMode ? 'Edit Batch' : 'Create New Batch' }}</h3>
-      <form @submit.prevent="submitForm">
-        <div class="form-row">
-          <div class="form-group">
-            <label>Course Name<span style="color:red"> *</span></label>
-            <input v-model="form.courseName" type="text" placeholder="Enter course name" required />
+    <!-- Modal Overlay -->
+    <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>{{ editMode ? 'Edit Batch' : 'Create New Batch' }}</h3>
+          <button @click="closeModal" class="modal-close">×</button>
+        </div>
+        <form @submit.prevent="submitForm">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Course Name <span class="required"> *</span></label>
+              <input v-model="form.courseName" type="text" placeholder="Enter course name" required />
+            </div>
+
+            <div class="form-group">
+              <label>Location <span class="required"> *</span></label>
+              <select v-model="form.location" required>
+                <option value="">Select Location</option>
+                <option value="Mumbai">Mumbai</option>
+                <option value="Delhi">Delhi</option>
+                <option value="Bangalore">Bangalore</option>
+                <option value="Hyderabad">Hyderabad</option>
+                <option value="Chennai">Chennai</option>
+                <option value="Pune">Pune</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Start Date <span class="required"> *</span></label>
+              <input 
+                v-model="form.startDate" 
+                type="date" 
+                :min="editMode ? '' : minStartDate" 
+                required 
+              />
+            </div>
+
+            <div class="form-group">
+              <label>End Date <span class="required"> *</span></label>
+              <input 
+                v-model="form.endDate" 
+                type="date" 
+                :min="editMode ? '' : minEndDate" 
+                required 
+              />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Select Trainer</label>
+              <select v-model="form.trainerId">
+                <option value="">Select Trainer (Optional)</option>
+                <option v-for="trainer in availableTrainers" :key="trainer.id" :value="trainer.id">
+                  {{ trainer.name }} - {{ trainer.location }}
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Max Capacity <span class="required"> *</span></label>
+              <input v-model.number="form.maxCapacity" type="number" min="1" placeholder="Enter max capacity" required />
+            </div>
           </div>
 
           <div class="form-group">
-            <label>Location<span style="color:red"> *</span></label>
-            <select v-model="form.location" required>
-              <option value="">Select Location</option>
-              <option value="Mumbai">Mumbai</option>
-              <option value="Delhi">Delhi</option>
-              <option value="Bangalore">Bangalore</option>
-              <option value="Hyderabad">Hyderabad</option>
-              <option value="Chennai">Chennai</option>
-              <option value="Pune">Pune</option>
+            <label>Status <span class="required"> *</span></label>
+            <select v-model="form.status" required>
+              <option value="Upcoming">Upcoming</option>
+              <option value="Active">Active</option>
+              <option v-if="editMode" value="Completed">Completed</option>
             </select>
           </div>
-        </div>
 
-        <div class="form-row">
-          <div class="form-group">
-            <label>Start Date<span style="color:red"> *</span></label>
-            <input v-model="form.startDate" type="date" :min="minDate" required />
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" @click="closeModal">
+              Cancel
+            </button>
+            <button type="submit" class="btn btn-primary" :disabled="loading">
+              {{ loading ? 'Processing...' : (editMode ? 'Update' : 'Create') }}
+            </button>
           </div>
-
-          <div class="form-group">
-            <label>End Date<span style="color:red"> *</span></label>
-            <input v-model="form.endDate" type="date" :min="minDate" required />
-          </div>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label>Select Trainer<span style="color:red"> *</span></label>
-            <select v-model="form.trainerId">
-              <option value="">Select Trainer (Optional)</option>
-              <option v-for="trainer in availableTrainers" :key="trainer.id" :value="trainer.id">
-                {{ trainer.name }} - {{ trainer.location }}
-              </option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label>Max Capacity<span style="color:red"> *</span></label>
-            <input v-model.number="form.maxCapacity" type="number" min="1" placeholder="Enter max capacity" required />
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label>Status<span style="color:red"> *</span></label>
-          <select v-model="form.status" required>
-            <option value="Active">Active</option>
-            <option value="Upcoming">Upcoming</option>
-          </select>
-        </div>
-
-        <div class="button-group">
-          <button type="submit" class="btn btn-primary" :disabled="loading">
-            {{ loading ? 'Processing...' : (editMode ? 'Update Batch' : 'Create Batch') }}
-          </button>
-          <button v-if="editMode" type="button" class="btn btn-secondary" @click="cancelEdit">
-            Cancel
-          </button>
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
 
     <div class="card">
@@ -127,21 +146,21 @@
 
       <div v-else class="no-data">
         <p>No batches created yet</p>
-        <p>Create a new batch using the form above</p>
+        <p>Create a new batch using the button above</p>
       </div>
     </div>
-
-
   </div>
 </template>
 
 <script>
 import api from '../services/api'
+import { showToast } from '../utils/toast'
 
 export default {
   name: 'BatchManagement',
   data() {
     return {
+      showModal: false,
       form: {
         id: null,
         courseName: '',
@@ -156,35 +175,33 @@ export default {
       },
       batches: [],
       availableTrainers: [],
-      message: '',
-      messageType: 'success',
       loading: false,
       editMode: false
     }
   },
   computed: {
-    minDate() {
+    minStartDate() {
       const today = new Date()
-      return today.toISOString().split('T')[0]  // Format: YYYY-MM-DD
+      return today.toISOString().split('T')[0]
+    },
+    minEndDate() {
+      const tomorrow = new Date()
+      tomorrow.setDate(tomorrow.getDate() + 1)
+      return tomorrow.toISOString().split('T')[0]
     }
   },
   mounted() {
-    console.log('BatchManagement component mounted')
     this.loadBatches()
     this.loadTrainers()
   },
   methods: {
     async loadBatches() {
-      console.log('Loading batches...')
       this.loading = true
       try {
         const response = await api.getBatches()
-        console.log('Batches response:', response.data)
         this.batches = response.data || []
-        console.log('Batches loaded:', this.batches.length)
       } catch (error) {
-        console.error('Error loading batches:', error)
-        this.showMessage('Error loading batches: ' + error.message, 'error')
+        showToast('Error loading batches', 'error')
       } finally {
         this.loading = false
       }
@@ -199,40 +216,60 @@ export default {
       }
     },
 
+    openAddModal() {
+      this.editMode = false
+      this.resetForm()
+      this.showModal = true
+    },
+
+    closeModal() {
+      this.showModal = false
+      this.resetForm()
+    },
+
     async submitForm() {
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)  // Reset time to start of day
-      
-      const startDate = new Date(this.form.startDate)
-      const endDate = new Date(this.form.endDate)
+      // Validation only for NEW batches (not edit)
+      if (!this.editMode) {
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        
+        const startDate = new Date(this.form.startDate)
+        const endDate = new Date(this.form.endDate)
 
-      // Check if start date is not in the past
-      if (startDate < today) {
-        this.showMessage('Start date cannot be in the past', 'error')
-        return
-      }
+        if (startDate < today) {
+          showToast('Start date cannot be in the past', 'error')
+          return
+        }
 
-      // Check if end date is after start date
-      if (endDate <= startDate) {
-        this.showMessage('End date must be after start date', 'error')
-        return
+        if (endDate <= startDate) {
+          showToast('End date must be after start date', 'error')
+          return
+        }
+      } else {
+        // For edit mode, just check end date is after start date
+        const startDate = new Date(this.form.startDate)
+        const endDate = new Date(this.form.endDate)
+
+        if (endDate <= startDate) {
+          showToast('End date must be after start date', 'error')
+          return
+        }
       }
 
       this.loading = true
       try {
         if (this.editMode) {
           await api.updateBatch(this.form.id, this.form)
-          this.showMessage('✅ Batch updated successfully!', 'success')
+          showToast('Batch updated successfully!', 'success')
         } else {
           await api.createBatch(this.form)
-          this.showMessage('✅ Batch created successfully!', 'success')
+          showToast('Batch created successfully!', 'success')
         }
         
+        this.closeModal()
         this.loadBatches()
-        this.resetForm()
       } catch (error) {
-        console.error('Submit error:', error)
-        this.showMessage('❌ Error: ' + (error.response?.data?.message || error.message), 'error')
+        showToast('Error: ' + (error.response?.data?.message || error.message), 'error')
       } finally {
         this.loading = false
       }
@@ -246,32 +283,26 @@ export default {
         location: batch.location,
         startDate: batch.startDate,
         endDate: batch.endDate,
-        trainerId: batch.trainerId,
+        trainerId: batch.trainerId || '',
         trainerName: batch.trainerName,
         maxCapacity: batch.maxCapacity,
         enrolledCount: batch.enrolledCount,
         status: batch.status
       }
-      window.scrollTo({ top: 0, behavior: 'smooth' })
+      this.showModal = true
     },
 
     async deleteBatch(id) {
-      if (!confirm('Are you sure you want to delete this batch? All associated trainees will be affected.')) {
+      if (!confirm('Are you sure you want to delete this batch?')) {
         return
       }
-
       try {
         await api.deleteBatch(id)
-        this.showMessage('✅ Batch deleted successfully!', 'success')
+        showToast('Batch deleted successfully!', 'success')
         this.loadBatches()
       } catch (error) {
-        console.error('Delete error:', error)
-        this.showMessage('❌ Error deleting batch', 'error')
+        showToast('Error deleting batch', 'error')
       }
-    },
-
-    cancelEdit() {
-      this.resetForm()
     },
 
     resetForm() {
@@ -293,9 +324,9 @@ export default {
     formatDate(date) {
       if (!date) return 'N/A'
       return new Date(date).toLocaleDateString('en-IN', {
-        year: 'numeric',
+        day: 'numeric',
         month: 'short',
-        day: 'numeric'
+        year: 'numeric'
       })
     },
 
@@ -303,51 +334,129 @@ export default {
       const classes = {
         'Active': 'status-active',
         'Upcoming': 'status-upcoming',
+        'Completed': 'status-completed'
       }
       return classes[status] || 'status-default'
-    },
-
-    showMessage(msg, type) {
-      this.message = msg
-      this.messageType = type
-      setTimeout(() => {
-        this.message = ''
-      }, 5000)
     }
   }
 }
 </script>
 
 <style scoped>
-.alert {
-  margin: 1rem 0;
-  padding: 1rem;
-  border-radius: 6px;
-  font-weight: 600;
-  text-align: center;
-}
-
-.success {
-  background: #e8f5e9;
-  color: #2e7d32;
-  border: 1px solid #81c784;
-}
-
-.error {
-  background: #ffebee;
-  color: #c62828;
-  border: 1px solid #ef9a9a;
-}
-
 .batch-management {
   max-width: 1400px;
   margin: 0 auto;
 }
 
-h2 {
-  color: #2c3e50;
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 2rem;
+}
+
+.page-header h2 {
+  color: #2c3e50;
   font-size: 2rem;
+  margin: 0;
+}
+
+.btn-add {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-add:hover {
+  background: #218838;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(40, 167, 69, 0.4);
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  padding: 0;
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    transform: translateY(-50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid #e0e0e0;
+  background: #667eea;
+  border-radius: 12px 12px 0 0;
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: white;
+  font-size: 1.5rem;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: white;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.modal-close:hover {
+  opacity: 0.8;
+}
+
+.modal-content form {
+  padding: 2rem;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e0e0e0;
 }
 
 .form-row {
@@ -357,10 +466,8 @@ h2 {
   margin-bottom: 1.5rem;
 }
 
-.button-group {
-  display: flex;
-  gap: 1rem;
-  margin-top: 1rem;
+.required {
+  color: red;
 }
 
 .loading {
@@ -421,6 +528,10 @@ h2 {
   color: #004085;
 }
 
+.status-completed {
+  background: #e2e3e5;
+  color: #383d41;
+}
 
 .batch-details {
   margin-bottom: 1rem;
@@ -474,7 +585,12 @@ h2 {
 }
 
 @media (max-width: 768px) {
-  h2 {
+  .page-header {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .page-header h2 {
     font-size: 1.5rem;
   }
   
@@ -484,6 +600,11 @@ h2 {
 
   .batches-grid {
     grid-template-columns: 1fr;
+  }
+
+  .modal-content {
+    width: 95%;
+    margin: 1rem;
   }
 }
 </style>
